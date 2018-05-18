@@ -421,17 +421,17 @@ if __name__ == "__main__":
                       [0., 0., 0., 1.]],
                      dtype=np.float64)
     pbrv = MeshcatRigidBodyVisualizer(rbt, draw_timestep=0.01)
-    time.sleep(1.0)
+    time.sleep(3.0)
 
     nq = rbt.get_num_positions()
-    timestep = 0.005
+    timestep = 0.001
 
     q0 = rbt.getZeroConfiguration()
     qtraj, ts, info = plan_grasping_trajectory(
         rbt,
         q0,
         np.array([0.75, 0., 0.95, -0.75, 0., -1.57]),
-        10, 1.0)
+        20, 3.0)
 
     # dt = 3. / 100.
     # time.sleep(dt)
@@ -446,8 +446,8 @@ if __name__ == "__main__":
 
     allmaterials = CompliantMaterial()
     allmaterials.set_youngs_modulus(1E8) # default 1E9
-    allmaterials.set_dissipation(1.0) # default 0.32
-    allmaterials.set_friction(1.0) # default 0.9.
+    allmaterials.set_dissipation(0.32) # default 0.32
+    allmaterials.set_friction(0.9) # default 0.9.
     rbplant.set_default_compliant_material(allmaterials)
 
     params = CompliantContactModelParameters()
@@ -512,7 +512,7 @@ if __name__ == "__main__":
     simulator = Simulator(diagram)
     simulator.Initialize()
     simulator.set_target_realtime_rate(1.0)
-    simulator.set_publish_every_time_step(True)
+    simulator.set_publish_every_time_step(False)
 
     # TODO(russt): Clean up state vector access below.
     state = simulator.get_mutable_context().get_mutable_state()\
@@ -522,8 +522,15 @@ if __name__ == "__main__":
     initial_state[0:q0.shape[0]] = q0
     state.SetFromVector(initial_state)
 
-    print simulator.get_integrator().get_target_accuracy()
-    simulator.get_integrator().set_target_accuracy(0.05)
+    # From iiwa_wsg_simulation.cc:
+    # When using the default RK3 integrator, the simulation stops
+    # advancing once the gripper grasps the box.  Grasping makes the
+    # problem computationally stiff, which brings the default RK3
+    # integrator to its knees.
+    simulator.reset_integrator_to_rk2(
+        diagram, timestep, simulator.get_mutable_context())
+
+    #simulator.get_integrator().set_target_accuracy(0.05)
     #simulator.get_integrator().set_fixed_step_mode(True)
     #simulator.get_integrator().set_maximum_step_size(timestep)
 
