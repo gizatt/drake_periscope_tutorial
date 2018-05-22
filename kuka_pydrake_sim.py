@@ -6,6 +6,7 @@ import os.path
 import time
 
 import matplotlib.animation as animation
+import matplotlib.pyplot as plt
 import numpy as np
 import scipy as sp
 import scipy.spatial
@@ -33,6 +34,7 @@ from pydrake.all import (
     RigidBodyFrame,
     RigidBodyPlant,
     RigidBodyTree,
+    RungeKutta2Integrator,
     Shape,
     SignalLogger,
     Simulator,
@@ -108,7 +110,7 @@ class KukaController(LeafSystem):
         self.last_print_time = -print_period
         self.shut_up = False
 
-        self.state_input_port = \
+        self.robot_state_input_port = \
             self._DeclareInputPort(PortDataType.kVectorValued,
                                    rbt.get_num_positions() +
                                    rbt.get_num_velocities())
@@ -123,33 +125,24 @@ class KukaController(LeafSystem):
         self._DeclareVectorOutputPort(
             BasicVector(self.nu),
             self._DoCalcVectorOutput)
+        self._DeclarePeriodicPublish(0.001, 0.0)
 
-    ''' This is called on every discrete state update (at the
-        specified control period), and expects the discrete state
-        to be updated with the new discrete state after the update.
-
-        For this system, the state is the output we'd like to produce
-        (for the complete robot). This system could be created
-        in a stateless way pretty easily -- through a combination of
-        limiting the publish rate of the system, and adding multiplexers
-        after the system to split the output into the
-        individual-finger-sized chunks that the hand plant wants
-        to consume. '''
     def _DoCalcDiscreteVariableUpdates(self, context, events, discrete_state):
         # Call base method to ensure we do not get recursion.
+        # (This makes sure relevant event handlers get called.)
         LeafSystem._DoCalcDiscreteVariableUpdates(
             self, context, events, discrete_state)
 
         new_control_input = discrete_state. \
             get_mutable_vector().get_mutable_value()
-        x = self.EvalVectorInput(context,
-                                 self.state_input_port.get_index()).get_value()
+        x = self.EvalVectorInput(
+            context, self.robot_state_input_port.get_index()).get_value()
         x_des = self.EvalVectorInput(
             context, self.setpoint_input_port.get_index()).get_value()
         q = x[:self.nq]
         v = x[self.nq:]
         q_des = x_des[:self.nq]
-        v_des = x_des[:self.nq]
+        v_des = x_des[self.nq:]
 
         qerr = (q_des[self.controlled_inds] - q[self.controlled_inds])
         verr = (v_des[self.controlled_inds] - v[self.controlled_inds])
@@ -158,7 +151,7 @@ class KukaController(LeafSystem):
         # Get the full LHS of the manipulator equations
         # given the current config and desired accelerations
         vd_des = np.zeros(rbt.get_num_positions())
-        vd_des[self.controlled_inds] = 1000.*qerr + 10*verr
+        vd_des[self.controlled_inds] = 1000.*qerr + 100*verr
         lhs = rbt.inverseDynamics(kinsol, external_wrenches={}, vd=vd_des)
         new_u = self.B_inv.dot(lhs[self.controlled_inds])
         new_control_input[:] = new_u
@@ -236,23 +229,39 @@ class HandController(LeafSystem):
 
 
 class ManipStateMachine(LeafSystem):
+    ''' Encodes the high-level logic
+        for the manipulation system.
+
+        This implementation is fairly minimal.
+        It is supplied with an open-loop
+        trajectory (presumably, to grasp the object from a
+        known position). At runtime, it spools
+        out pose goals for the robot according to
+        this trajectory. Once the trajectory has been
+        executed, it closes the gripper, waits
+        a second, and then plays the trajectory back in reverse
+        to bring the robot back to its original posture.
+    '''
     def __init__(self, rbt, plant, qtraj):
         LeafSystem.__init__(self)
         self.set_name("Manipulation State Machine")
 
         self.qtraj = qtraj
 
+        self.gripper_closing_force = 10.
+        self.gripper_opening_force = -10.
+
         self.rbt = rbt
         self.nq = rbt.get_num_positions()
         self.plant = plant
 
-        self.state_input_port = \
+        self.robot_state_input_port = \
             self._DeclareInputPort(PortDataType.kVectorValued,
                                    rbt.get_num_positions() +
                                    rbt.get_num_velocities())
 
         self._DeclareDiscreteState(1)
-        self._DeclarePeriodicDiscreteUpdate(period_sec=0.01)
+        self._DeclarePeriodicDiscreteUpdate(period_sec=0.001)
 
         self.kuka_setpoint_output_port = \
             self._DeclareVectorOutputPort(
@@ -265,17 +274,6 @@ class ManipStateMachine(LeafSystem):
 
         self._DeclarePeriodicPublish(0.01, 0.0)
 
-    ''' This is called on every discrete state update (at the
-        specified control period), and expects the discrete state
-        to be updated with the new discrete state after the update.
-
-        For this system, the state is the output we'd like to produce
-        (for the complete robot). This system could be created
-        in a stateless way pretty easily -- through a combination of
-        limiting the publish rate of the system, and adding multiplexers
-        after the system to split the output into the
-        individual-finger-sized chunks that the hand plant wants
-        to consume. '''
     def _DoCalcDiscreteVariableUpdates(self, context, events, discrete_state):
         # Call base method to ensure we do not get recursion.
         LeafSystem._DoCalcDiscreteVariableUpdates(
@@ -283,26 +281,31 @@ class ManipStateMachine(LeafSystem):
 
         new_state = discrete_state. \
             get_mutable_vector().get_mutable_value()
-        if context.get_time() > 3.:
-            new_state[:] = 80
+        # Close gripper after plan has been executed
+        if context.get_time() > qtraj.end_time():
+            new_state[:] = self.gripper_closing_force
         else:
-            new_state[:] = -80
+            new_state[:] = self.gripper_opening_force
 
     def _DoCalcKukaSetpointOutput(self, context, y_data):
 
         t = context.get_time()
 
-        if t < 3.:
+        t_end = qtraj.end_time()
+        if t < t_end:
             virtual_time = t
         else:
-            virtual_time = 3. - (t - 3.)
+            virtual_time = t_end - (t - t_end)
 
-        dt = 0.1
+        dt = 0.01  # Look-ahead for estimating target velocity
+
         target_q = self.qtraj.value(virtual_time)
         target_qn = self.qtraj.value(virtual_time+dt)
         # This is pretty inefficient and inaccurate -- TODO(gizatt)
-        # get this directory from the trajectory object somehow.
+        # velocity target directly from the trajectory object somehow.
         target_v = (target_qn - target_q) / dt
+        if t >= t_end:
+            target_v *= -1.
         kuka_setpoint = y_data.get_mutable_value()
         # Get the ith finger control output
         kuka_setpoint[:self.nq] = target_q[:, 0]
@@ -373,6 +376,9 @@ def setup_kuka(rbt):
 
 
 def plan_grasping_configuration(rbt, q0, target_ee_pose):
+    ''' Performs IK for a single point in time
+        to get the Kuka's gripper to a specified
+        pose in space. '''
     nq = rbt.get_num_positions()
     q_des_full = np.zeros(nq)
 
@@ -420,6 +426,10 @@ def plan_grasping_configuration(rbt, q0, target_ee_pose):
 
 
 def plan_grasping_trajectory(rbt, q0, target_ee_pose, n_pts, end_time):
+    ''' Solves IK at a series of sample times (connected with a
+    spline) to generate a trajectory to bring the Kuka from an
+    initial pose q0 to a final end effector pose in the specified
+    time, using the specified number of knot points. '''
     nq = rbt.get_num_positions()
     q_des_full = np.zeros(nq)
 
@@ -481,7 +491,7 @@ def plan_grasping_trajectory(rbt, q0, target_ee_pose, n_pts, end_time):
     results = ik.InverseKinTraj(rbt, ts, q_seed, q_nom,
                                 constraints, options)
 
-    qtraj = PiecewisePolynomial.FirstOrderHold(ts, np.vstack(results.q_sol).T)
+    qtraj = PiecewisePolynomial.Pchip(ts, np.vstack(results.q_sol).T, True)
 
     return qtraj, results.info[0]
 
@@ -514,6 +524,7 @@ if __name__ == "__main__":
         10, 2.0)
 
     rbplant = RigidBodyPlant(rbt)
+    rbplant.set_name("Rigid Body Plant")
     nx = rbplant.get_num_states()
 
     allmaterials = CompliantMaterial()
@@ -530,36 +541,15 @@ if __name__ == "__main__":
     builder = DiagramBuilder()
     rbplant_sys = builder.AddSystem(rbplant)
 
-    '''
-    torque = 100.0
-    print('Simulating with uniform random torque on [%f, %f]'
-          % (-torque, torque))
-
-    for i in range(rbplant_sys.get_num_input_ports()):
-        input_port = rbplant_sys.get_input_port(i)
-        N = input_port.size()
-        random_source = builder.AddSystem(UniformRandomSource(
-                                N, sampling_interval_sec=1.))
-        noise_shifter = builder.AddSystem(AffineSystem(
-            A=[0.],
-            B=np.zeros((1, N)),
-            f0=[0.],
-            C=np.zeros((N, 1)),
-            D=np.eye(N)*torque*2.,
-            y0=-1.*np.ones((N, 1))*torque))
-        builder.Connect(random_source.get_output_port(0),
-                        noise_shifter.get_input_port(0))
-        builder.Connect(noise_shifter.get_output_port(0),
-                        input_port)
-    '''
-
     manip_state_machine = builder.AddSystem(
         ManipStateMachine(rbt, rbplant_sys, qtraj))
+    builder.Connect(rbplant_sys.state_output_port(),
+                    manip_state_machine.robot_state_input_port)
 
     kuka_controller = builder.AddSystem(
         KukaController(rbt, rbplant_sys))
     builder.Connect(rbplant_sys.state_output_port(),
-                    kuka_controller.state_input_port)
+                    kuka_controller.robot_state_input_port)
     builder.Connect(manip_state_machine.kuka_setpoint_output_port,
                     kuka_controller.setpoint_input_port)
     builder.Connect(kuka_controller.get_output_port(0),
@@ -576,12 +566,17 @@ if __name__ == "__main__":
     builder.Connect(rbplant_sys.state_output_port(),
                     visualizer.get_input_port(0))
 
-    # And also log
-    signalLogRate = 60
-    signalLogger = builder.AddSystem(SignalLogger(nx))
-    signalLogger._DeclarePeriodicPublish(1. / signalLogRate, 0.0)
-    builder.Connect(rbplant_sys.get_output_port(0),
-                    signalLogger.get_input_port(0))
+    # And also log state and setpoint
+    def log_output(output_port, rate):
+        logger = builder.AddSystem(SignalLogger(output_port.size()))
+        logger._DeclarePeriodicPublish(1. / rate, 0.0)
+        builder.Connect(output_port, logger.get_input_port(0))
+        return logger
+    state_log = log_output(rbplant_sys.get_output_port(0), 60.)
+    setpoint_log = log_output(
+        manip_state_machine.kuka_setpoint_output_port, 60.)
+    kuka_control_log = log_output(
+        kuka_controller.get_output_port(0), 60.)
 
     diagram = builder.Build()
     render_system_with_graphviz(diagram, "view.gv")
@@ -604,15 +599,63 @@ if __name__ == "__main__":
     # advancing once the gripper grasps the box.  Grasping makes the
     # problem computationally stiff, which brings the default RK3
     # integrator to its knees.
-    simulator.reset_integrator_to_rk2(
-        diagram, timestep, simulator.get_mutable_context())
+    simulator.reset_integrator(
+        RungeKutta2Integrator(diagram, timestep,
+                              simulator.get_mutable_context()))
 
-    #simulator.get_integrator().set_target_accuracy(0.05)
-    #simulator.get_integrator().set_fixed_step_mode(True)
-    #simulator.get_integrator().set_maximum_step_size(timestep)
-
-    simulator.StepTo(10)
+    simulator.StepTo(4.)
     print(state.CopyToVector())
 
-    # Generate an animation of whatever happened
-    ani = visualizer.animate(signalLogger)
+    print state_log.data(), setpoint_log.data()
+    plt.figure()
+    plt.subplot(3, 1, 1)
+    dims_to_draw = range(7)
+    color = iter(plt.cm.rainbow(np.linspace(0, 1, 7)))
+    for i in dims_to_draw:
+        colorthis = next(color)
+        plt.plot(state_log.sample_times(),
+                 state_log.data()[i, :],
+                 color=colorthis,
+                 linestyle='solid',
+                 label="q[%d]" % i)
+        plt.plot(setpoint_log.sample_times(),
+                 setpoint_log.data()[i, :],
+                 color=colorthis,
+                 linestyle='dashed',
+                 label="q_des[%d]" % i)
+    plt.ylabel("m")
+    plt.grid(True)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+
+    plt.subplot(3, 1, 2)
+    color = iter(plt.cm.rainbow(np.linspace(0, 1, 7)))
+    for i in dims_to_draw:
+        colorthis = next(color)
+        plt.plot(state_log.sample_times(),
+                 state_log.data()[nq + i, :],
+                 color=colorthis,
+                 linestyle='solid',
+                 label="v[%d]" % i)
+        plt.plot(setpoint_log.sample_times(),
+                 setpoint_log.data()[nq + i, :],
+                 color=colorthis,
+                 linestyle='dashed',
+                 label="v_des[%d]" % i)
+    plt.ylabel("m/s")
+    plt.grid(True)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+
+    plt.subplot(3, 1, 3)
+    color = iter(plt.cm.rainbow(np.linspace(0, 1, 7)))
+    for i in dims_to_draw:
+        colorthis = next(color)
+        plt.plot(kuka_control_log.sample_times(),
+                 kuka_control_log.data()[i, :],
+                 color=colorthis,
+                 linestyle=':',
+                 label="u[%d]" % i)
+    plt.xlabel("t")
+    plt.ylabel("N/m")
+    plt.grid(True)
+    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    plt.show()
