@@ -9,6 +9,8 @@ import numpy as np
 import pydrake
 from pydrake.all import (
     DiagramBuilder,
+    RgbdCamera,
+    RigidBodyFrame,
     RigidBodyPlant,
     RigidBodyTree,
     RungeKutta2Integrator,
@@ -85,6 +87,27 @@ if __name__ == "__main__":
     visualizer = builder.AddSystem(pbrv)
     builder.Connect(rbplant_sys.state_output_port(),
                     visualizer.get_input_port(0))
+
+    # Add a camera, too, though no controller or estimator
+    # will consume the output of it.
+    # - Add frame for camera fixture.
+    camera_frame = RigidBodyFrame(
+        name="rgbd camera frame", body=rbt.world(),
+        xyz=[2, 0., 1.5], rpy=[-np.pi/4, 0., -np.pi])
+    rbt.addFrame(camera_frame)
+    camera = builder.AddSystem(
+        RgbdCamera(name="camera", tree=rbt, frame=camera_frame,
+                   z_near=0.5, z_far=5.0, fov_y=np.pi / 4,
+                   show_window=False))
+    builder.Connect(rbplant_sys.state_output_port(),
+                    camera.get_input_port(0))
+
+    camera_meshcat_visualizer = builder.AddSystem(
+        kuka_utils.RgbdCameraMeshcatVisualizer(camera, rbt))
+    builder.Connect(camera.depth_image_output_port(),
+                    camera_meshcat_visualizer.camera_input_port)
+    builder.Connect(rbplant_sys.state_output_port(),
+                    camera_meshcat_visualizer.state_input_port)
 
     # Hook up loggers for the robot state, the robot setpoints,
     # and the torque inputs.
