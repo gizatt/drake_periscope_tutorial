@@ -6,10 +6,10 @@ This repo contains tutorial info for Drake (see http://drake.mit.edu).
 
 You'll have to install Drake (from binaries or source, your choice) following the instructions on the Drake website, or in [this guide](https://docs.google.com/document/d/16gUlJtwtPeNNLs7vk6IbuXXYKyJTdhoEt8BnXbWg52Y/edit?usp=sharing).
 
-You'll also need to use [jupyter](http://jupyter-notebook-beginner-guide.readthedocs.io/en/latest/what_is_jupyter.html) to view the notebook (.ipynb) files, and [meshcat-python](https://github.com/rdeits/meshcat-python) to view the 3D visualizations in some of the examples. You can install both with
+You'll also need to use [jupyter](http://jupyter-notebook-beginner-guide.readthedocs.io/en/latest/what_is_jupyter.html) to view the notebook (.ipynb) files, [graphviz](https://pypi.org/project/graphviz/), and [meshcat-python](https://github.com/rdeits/meshcat-python) to view the 3D visualizations in some of the examples. You can install both with
 
 ```
-pip install jupyter meshcat
+pip install jupyter graphviz meshcat
 ```
 
 ## USE
