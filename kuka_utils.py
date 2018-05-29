@@ -186,4 +186,5 @@ class RgbdCameraMeshcatVisualizer(LeafSystem):
 
         self.vis[self.prefix]["points"].set_object(
             g.PointCloud(position=points_in_world_frame,
-                         color=colors))
+                         color=colors,
+                         size=0.005))

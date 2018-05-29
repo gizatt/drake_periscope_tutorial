@@ -99,7 +99,8 @@ if __name__ == "__main__":
     rbt.addFrame(camera_frame)
     camera = builder.AddSystem(
         RgbdCamera(name="camera", tree=rbt, frame=camera_frame,
-                   z_near=0.5, z_far=5.0, fov_y=np.pi / 4,
+                   z_near=0.5, z_far=2.0, fov_y=np.pi / 4,
+                   width=320, height=240,
                    show_window=False))
     builder.Connect(rbplant_sys.state_output_port(),
                     camera.get_input_port(0))
