@@ -1,6 +1,6 @@
 # Drake Concepts Tutorial
 
-This repo contains tutorial info for Drake (see http://drake.mit.edu).
+This repo contains tutorial info for Drake (see http://drake.mit.edu). It's a sort of code equivalent or companion to [this guide](https://docs.google.com/document/d/16gUlJtwtPeNNLs7vk6IbuXXYKyJTdhoEt8BnXbWg52Y/edit?usp=sharing).
 
 ## PREREQS
 
