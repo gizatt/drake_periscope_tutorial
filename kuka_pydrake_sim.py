@@ -27,6 +27,27 @@ import kuka_ik
 import kuka_utils
 
 if __name__ == "__main__":
+    np.set_printoptions(precision=5, suppress=True)
+    parser = argparse.ArgumentParser()
+    parser.add_argument("-T", "--duration",
+                        type=float,
+                        help="Duration to run sim.",
+                        default=4.0)
+    parser.add_argument("--test",
+                        action="store_true",
+                        help="Help out CI by launching a meshcat server for "
+                             "the duration of the test.")
+    args = parser.parse_args()
+
+    meshcat_server_p = None
+    if args.test:
+        print "Spawning"
+        import subprocess
+        meshcat_server_p = subprocess.Popen(["meshcat-server"])
+    else:
+        print "Warning: if you have not yet run meshcat-server in another " \
+              "terminal, this will hang."
+
     # Construct the robot and its environment
     rbt = RigidBodyTree()
     kuka_utils.setup_kuka(rbt)
@@ -158,60 +179,65 @@ if __name__ == "__main__":
 
     # This kicks off simulation. Most of the run time will be spent
     # in this call.
-    simulator.StepTo(4.)
+    simulator.StepTo(args.duration)
     print("Final state: ", state.CopyToVector())
 
-    # Do some plotting to show off accessing signal logger data.
-    nq = rbt.get_num_positions()
-    plt.figure()
-    plt.subplot(3, 1, 1)
-    dims_to_draw = range(7)
-    color = iter(plt.cm.rainbow(np.linspace(0, 1, 7)))
-    for i in dims_to_draw:
-        colorthis = next(color)
-        plt.plot(state_log.sample_times(),
-                 state_log.data()[i, :],
-                 color=colorthis,
-                 linestyle='solid',
-                 label="q[%d]" % i)
-        plt.plot(setpoint_log.sample_times(),
-                 setpoint_log.data()[i, :],
-                 color=colorthis,
-                 linestyle='dashed',
-                 label="q_des[%d]" % i)
-    plt.ylabel("m")
-    plt.grid(True)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+    if args.test is not True:
+        # Do some plotting to show off accessing signal logger data.
+        nq = rbt.get_num_positions()
+        plt.figure()
+        plt.subplot(3, 1, 1)
+        dims_to_draw = range(7)
+        color = iter(plt.cm.rainbow(np.linspace(0, 1, 7)))
+        for i in dims_to_draw:
+            colorthis = next(color)
+            plt.plot(state_log.sample_times(),
+                     state_log.data()[i, :],
+                     color=colorthis,
+                     linestyle='solid',
+                     label="q[%d]" % i)
+            plt.plot(setpoint_log.sample_times(),
+                     setpoint_log.data()[i, :],
+                     color=colorthis,
+                     linestyle='dashed',
+                     label="q_des[%d]" % i)
+        plt.ylabel("m")
+        plt.grid(True)
+        plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
-    plt.subplot(3, 1, 2)
-    color = iter(plt.cm.rainbow(np.linspace(0, 1, 7)))
-    for i in dims_to_draw:
-        colorthis = next(color)
-        plt.plot(state_log.sample_times(),
-                 state_log.data()[nq + i, :],
-                 color=colorthis,
-                 linestyle='solid',
-                 label="v[%d]" % i)
-        plt.plot(setpoint_log.sample_times(),
-                 setpoint_log.data()[nq + i, :],
-                 color=colorthis,
-                 linestyle='dashed',
-                 label="v_des[%d]" % i)
-    plt.ylabel("m/s")
-    plt.grid(True)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+        plt.subplot(3, 1, 2)
+        color = iter(plt.cm.rainbow(np.linspace(0, 1, 7)))
+        for i in dims_to_draw:
+            colorthis = next(color)
+            plt.plot(state_log.sample_times(),
+                     state_log.data()[nq + i, :],
+                     color=colorthis,
+                     linestyle='solid',
+                     label="v[%d]" % i)
+            plt.plot(setpoint_log.sample_times(),
+                     setpoint_log.data()[nq + i, :],
+                     color=colorthis,
+                     linestyle='dashed',
+                     label="v_des[%d]" % i)
+        plt.ylabel("m/s")
+        plt.grid(True)
+        plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
 
-    plt.subplot(3, 1, 3)
-    color = iter(plt.cm.rainbow(np.linspace(0, 1, 7)))
-    for i in dims_to_draw:
-        colorthis = next(color)
-        plt.plot(kuka_control_log.sample_times(),
-                 kuka_control_log.data()[i, :],
-                 color=colorthis,
-                 linestyle=':',
-                 label="u[%d]" % i)
-    plt.xlabel("t")
-    plt.ylabel("N/m")
-    plt.grid(True)
-    plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
-    plt.show()
+        plt.subplot(3, 1, 3)
+        color = iter(plt.cm.rainbow(np.linspace(0, 1, 7)))
+        for i in dims_to_draw:
+            colorthis = next(color)
+            plt.plot(kuka_control_log.sample_times(),
+                     kuka_control_log.data()[i, :],
+                     color=colorthis,
+                     linestyle=':',
+                     label="u[%d]" % i)
+        plt.xlabel("t")
+        plt.ylabel("N/m")
+        plt.grid(True)
+        plt.legend(bbox_to_anchor=(1.05, 1), loc=2, borderaxespad=0.)
+        plt.show()
+
+    if meshcat_server_p is not None:
+        meshcat_server_p.kill()
+        meshcat_server_p.wait()

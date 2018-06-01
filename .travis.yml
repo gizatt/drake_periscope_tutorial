@@ -1,0 +1,32 @@
+language: python
+
+sudo: true
+
+python:
+  - 2.7
+
+env:
+  global:
+  - CONDA_DEPS="pytest numpy"
+  - PYTHONPATH="$HOME/underactuated:/opt/drake/lib/python2.7/site-packages"
+  matrix:
+  - DRAKE_URL="https://drake-packages.csail.mit.edu/drake/nightly/drake-20180528-xenial.tar.gz"
+
+addons:
+  apt:
+    packages:
+    - graphviz
+    - python-pip
+
+before_install:
+  - "pip install --upgrade pip jupyter graphviz meshcat numpy matplotlib"
+  - "curl -o drake.tar.gz $DRAKE_URL && sudo tar -xvzf drake.tar.gz -C /opt"
+  - "sudo /opt/drake/share/drake/setup/install_prereqs"
+  - "git clone https://github.com/RussTedrake/underactuated $HOME/underactuated"
+  - "sudo $HOME/underactuated/scripts/setup/ubuntu/16.04/install_prereqs"
+
+#install:
+#- python setup.py install
+
+script:
+- python kuka_pydrake_sim.py --test
