@@ -1,7 +1,8 @@
 # Drake Concepts Tutorial
 
-Build, pegged on [binaries from 20180528](https://drake-packages.csail.mit.edu/drake/nightly/drake-20180528-xenial.tar.gz): [![Build Status](https://travis-ci.org/gizatt/drake_periscope_tutorial.svg?branch=master)](https://travis-ci.org/gizatt/drake_periscope_tutorial)
-Build, pegged on [binaries from 20180528](https://drake-packages.csail.mit.edu/drake/nightly/drake-20180528-xenial.tar.gz): [![Build Status](https://travis-ci.org/gizatt/drake_periscope_tutorial.svg?branch=master)](https://travis-ci.org/gizatt/drake_periscope_tutorial)
+[![Build Status](https://travis-ci.org/gizatt/drake_periscope_tutorial.svg?branch=master)](https://travis-ci.org/gizatt/drake_periscope_tutorial)
+
+*(Build tested both on [Drake binaries from 20180528](https://drake-packages.csail.mit.edu/drake/nightly/drake-20180528-xenial.tar.gz) and [latest Drake binaries](https://drake-packages.csail.mit.edu/drake/nightly/drake-latest-xenial.tar.gz)).*
 
 This repo contains tutorial info for Drake (see http://drake.mit.edu). It's a sort of code equivalent or companion to [this guide](https://docs.google.com/document/d/16gUlJtwtPeNNLs7vk6IbuXXYKyJTdhoEt8BnXbWg52Y/edit?usp=sharing).
 
