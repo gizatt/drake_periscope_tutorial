@@ -16,7 +16,7 @@ env:
   - CONDA_DEPS="pytest numpy"
   - PYTHONPATH="$HOME/underactuated:/opt/drake/lib/python2.7/site-packages"
   matrix:
-  - DRAKE_URL="https://drake-packages.csail.mit.edu/drake/nightly/drake-20180528-xenial.tar.gz"
+  - DRAKE_URL="https://drake-packages.csail.mit.edu/drake/nightly/drake-20180604-xenial.tar.gz"
   - DRAKE_URL="https://drake-packages.csail.mit.edu/drake/nightly/drake-latest-xenial.tar.gz"
 
 install:

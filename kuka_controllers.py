@@ -64,7 +64,6 @@ class KukaController(LeafSystem):
         self._DeclareVectorOutputPort(
             BasicVector(self.nu),
             self._DoCalcVectorOutput)
-        self._DeclarePeriodicPublish(0.001, 0.0)
 
     def _DoCalcDiscreteVariableUpdates(self, context, events, discrete_state):
         # Call base method to ensure we do not get recursion.
@@ -95,18 +94,83 @@ class KukaController(LeafSystem):
         new_u = self.B_inv.dot(lhs[self.controlled_inds])
         new_control_input[:] = new_u
 
-    ''' This is called whenever this system needs to publish
-        output. We did some magic in the constructor to add
-        an extra argument to tell the function what finger's
-        control input to return. It looks up into the
-        current state what the current complete output is,
-        and returns the torques for only finger i.'''
     def _DoCalcVectorOutput(self, context, y_data):
         if (self.print_period and
                 context.get_time() - self.last_print_time
                 >= self.print_period):
             print "t: ", context.get_time()
             self.last_print_time = context.get_time()
+        control_output = context.get_discrete_state_vector().get_value()
+        y = y_data.get_mutable_value()
+        # Get the ith finger control output
+        y[:] = control_output[:]
+
+
+class HandController(LeafSystem):
+    def __init__(self, rbt, plant,
+                 control_period=0.001):
+        LeafSystem.__init__(self)
+        self.set_name("Hand Controller")
+
+        self.controlled_joint_names = [
+            "left_finger_sliding_joint",
+            "right_finger_sliding_joint"
+        ]
+
+        self.max_force = 100.  # gripper max closing / opening force
+
+        self.controlled_inds, _ = kuka_utils.extract_position_indices(
+            rbt, self.controlled_joint_names)
+
+        self.nu = plant.get_input_port(1).size()
+        self.nq = rbt.get_num_positions()
+
+        self.robot_state_input_port = \
+            self._DeclareInputPort(PortDataType.kVectorValued,
+                                   rbt.get_num_positions() +
+                                   rbt.get_num_velocities())
+
+        self.setpoint_input_port = \
+            self._DeclareInputPort(PortDataType.kVectorValued,
+                                   1)
+
+        self._DeclareDiscreteState(self.nu)
+        self._DeclarePeriodicDiscreteUpdate(period_sec=control_period)
+        self._DeclareVectorOutputPort(
+            BasicVector(self.nu),
+            self._DoCalcVectorOutput)
+
+    def _DoCalcDiscreteVariableUpdates(self, context, events, discrete_state):
+        # Call base method to ensure we do not get recursion.
+        # (This makes sure relevant event handlers get called.)
+        LeafSystem._DoCalcDiscreteVariableUpdates(
+            self, context, events, discrete_state)
+
+        new_control_input = discrete_state. \
+            get_mutable_vector().get_mutable_value()
+        x = self.EvalVectorInput(
+            context, self.robot_state_input_port.get_index()).get_value()
+
+        gripper_width_des = self.EvalVectorInput(
+            context, self.setpoint_input_port.get_index()).get_value()
+
+        q_full = x[:self.nq]
+        v_full = x[self.nq:]
+
+        q = q_full[self.controlled_inds]
+        q_des = np.array([-gripper_width_des[0], gripper_width_des[0]])
+        v = v_full[self.controlled_inds]
+        v_des = np.zeros(2)
+
+        qerr = q_des - q
+        verr = v_des - v
+
+        Kp = 1000.
+        Kv = 100.
+        new_control_input[:] = np.clip(
+            Kp * qerr + Kv * verr, -self.max_force, self.max_force)
+
+    def _DoCalcVectorOutput(self, context, y_data):
         control_output = context.get_discrete_state_vector().get_value()
         y = y_data.get_mutable_value()
         # Get the ith finger control output
@@ -132,9 +196,6 @@ class ManipStateMachine(LeafSystem):
         self.set_name("Manipulation State Machine")
 
         self.qtraj = qtraj
-
-        self.gripper_closing_force = 10.
-        self.gripper_opening_force = -10.
 
         self.rbt = rbt
         self.nq = rbt.get_num_positions()
@@ -168,9 +229,9 @@ class ManipStateMachine(LeafSystem):
             get_mutable_vector().get_mutable_value()
         # Close gripper after plan has been executed
         if context.get_time() > self.qtraj.end_time():
-            new_state[:] = self.gripper_closing_force
+            new_state[:] = 0.
         else:
-            new_state[:] = self.gripper_opening_force
+            new_state[:] = 0.1
 
     def _DoCalcKukaSetpointOutput(self, context, y_data):
 
@@ -192,7 +253,6 @@ class ManipStateMachine(LeafSystem):
         if t >= t_end:
             target_v *= -1.
         kuka_setpoint = y_data.get_mutable_value()
-        # Get the ith finger control output
         kuka_setpoint[:self.nq] = target_q[:, 0]
         kuka_setpoint[self.nq:] = target_v[:, 0]
 

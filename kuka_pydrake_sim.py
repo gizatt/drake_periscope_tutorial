@@ -99,11 +99,14 @@ if __name__ == "__main__":
     builder.Connect(kuka_controller.get_output_port(0),
                     rbplant_sys.get_input_port(0))
 
-    # We could have a whole controller dedicated to the
-    # hand, but the simplest controller is to feed the
-    # force setpoint directly to the hand, since the gripper
-    # we're using conveniently only has one input.
+    # Same for the hand
+    hand_controller = builder.AddSystem(
+        kuka_controllers.HandController(rbt, rbplant_sys))
+    builder.Connect(rbplant_sys.state_output_port(),
+                    hand_controller.robot_state_input_port)
     builder.Connect(manip_state_machine.hand_setpoint_output_port,
+                    hand_controller.setpoint_input_port)
+    builder.Connect(hand_controller.get_output_port(0),
                     rbplant_sys.get_input_port(1))
 
     # Hook up the visualizer we created earlier.
