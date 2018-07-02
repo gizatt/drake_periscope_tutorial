@@ -170,7 +170,7 @@ class RgbdCameraMeshcatVisualizer(LeafSystem):
         points_in_camera_frame = pose_mat[0:3, 0:3].dot(points_in_camera_frame)
         points_in_camera_frame += np.tile(pose_mat[0:3, 3], [w*h, 1]).T
 
-        kinsol = self.rbt.doKinematics(x)
+        kinsol = self.rbt.doKinematics(x[:self.rbt.get_num_positions()])
         points_in_world_frame = self.rbt.transformPoints(
             kinsol,
             points_in_camera_frame,
