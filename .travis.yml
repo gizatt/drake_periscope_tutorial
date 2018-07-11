@@ -13,7 +13,7 @@ services:
 
 env:
   global:
-  - CONDA_DEPS="pytest numpy"
+  - CONDA_DEPS="pytest numpy trimesh pyglet"
   - PYTHONPATH="$HOME/underactuated:/opt/drake/lib/python2.7/site-packages"
   matrix:
   - DRAKE_URL="https://drake-packages.csail.mit.edu/drake/nightly/drake-20180604-xenial.tar.gz"

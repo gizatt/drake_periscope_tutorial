@@ -10,11 +10,11 @@ This repo contains tutorial info for Drake (see http://drake.mit.edu). It's a so
 
 You'll have to install Drake (from binaries or source, your choice) following the instructions on the Drake website, or in [this guide](https://docs.google.com/document/d/16gUlJtwtPeNNLs7vk6IbuXXYKyJTdhoEt8BnXbWg52Y/edit?usp=sharing).
 
-You'll also need to use [jupyter](http://jupyter-notebook-beginner-guide.readthedocs.io/en/latest/what_is_jupyter.html) to view the notebook (.ipynb) files, [graphviz](https://pypi.org/project/graphviz/), and [meshcat-python](https://github.com/rdeits/meshcat-python) to view the 3D visualizations in some of the examples. You'll also need some more standard libraries (e.g. numpy). You can install all of these with
+You'll also need to use [jupyter](http://jupyter-notebook-beginner-guide.readthedocs.io/en/latest/what_is_jupyter.html) to view the notebook (.ipynb) files, [graphviz](https://pypi.org/project/graphviz/), and [meshcat-python](https://github.com/rdeits/meshcat-python) to view the 3D visualizations in some of the examples, and SCAD, pyglet, and trimesh for mesh generation. You'll also need some more standard libraries (e.g. numpy). You can install all of these with
 
 ```
-apt-get install graphviz
-pip install jupyter graphviz meshcat numpy matplotlib
+apt-get install graphviz openscad
+pip install jupyter graphviz meshcat numpy matplotlib trimesh
 ```
 
 And finally, you'll need to have the [Drake textbook example code](https://github.com/RussTedrake/underactuated) available and on your PYTHONPATH. You can pull it down with
