@@ -106,6 +106,18 @@ def plan_grasping_trajectory(rbt, q0, target_reach_pose,
         q0[constrained_config_inds]-0.01, q0[constrained_config_inds]+0.01)
     constraints.append(posture_constraint)
 
+    # Constrain all joints to have reasonable values at all times
+    posture_constraint = ik.PostureConstraint(rbt, all_tspan)
+    posture_constraint.setJointLimits(range(rbt.get_num_positions()),
+                                      np.ones(rbt.get_num_positions())*-10.,
+                                      np.ones(rbt.get_num_positions())*10.)
+    constraints.append(posture_constraint)
+
+    # Constrain the trajectory to not cause penetration
+    nonpen_constraint = ik.MinDistanceConstraint(
+        rbt, 0.05, list(), set(), all_tspan)
+    constraints.append(nonpen_constraint)
+
     # Constrain all joints to be the initial posture at the start time
     start_tspan = np.array([0., 0.])
     posture_constraint = ik.PostureConstraint(rbt, start_tspan)
@@ -144,6 +156,9 @@ def plan_grasping_trajectory(rbt, q0, target_reach_pose,
     zero_velocity = np.zeros(rbt.get_num_velocities())
     options.setqd0(zero_velocity, zero_velocity)
     options.setqdf(zero_velocity, zero_velocity)
+    options.setFixInitialState(True)
+    options.setIterationsLimit(1000000)  # default 10000
+    options.setSuperbasicsLimit(200000)  # default 2000
     results = ik.InverseKinTraj(rbt, ts, q_seed, q_nom,
                                 constraints, options)
 

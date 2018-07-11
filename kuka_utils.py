@@ -73,6 +73,11 @@ def setup_kuka(rbt):
         "examples", "kuka_iiwa_arm", "models", "objects",
         "block_for_pick_and_place.urdf")
 
+    cuboic_urdf_path = os.path.join(
+        pydrake.getDrakePath(),
+        "examples", "kuka_iiwa_arm", "models", "objects",
+        "simple_cuboid.urdf")
+
     AddFlatTerrainToWorld(rbt)
     table_frame_robot = RigidBodyFrame(
         "table_frame_robot", rbt.world(),
@@ -88,6 +93,13 @@ def setup_kuka(rbt):
         table_frame_fwd, rbt)
 
     table_top_z_in_world = 0.736 + 0.057 / 2
+
+    obstacle_frame = RigidBodyFrame(
+        "obstacle_frame", rbt.world(),
+        [0.9, 0, 2 * table_top_z_in_world + 0.3], [np.pi, 0.0, 0])
+    AddModelInstancesFromSdfString(
+        open(table_sdf_path).read(),
+        FloatingBaseType.kFixed, obstacle_frame, rbt)
 
     robot_base_frame = RigidBodyFrame(
         "robot_base_frame", rbt.world(),

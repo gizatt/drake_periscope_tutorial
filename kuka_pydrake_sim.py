@@ -64,8 +64,8 @@ if __name__ == "__main__":
     qtraj, info = kuka_ik.plan_grasping_trajectory(
         rbt,
         q0=q0,
-        target_reach_pose=np.array([0.6, 0., 1.0, -0.75, 0., -1.57]),
-        target_grasp_pose=np.array([0.8, 0., 0.9, -0.75, 0., -1.57]),
+        target_reach_pose=np.array([0.6, 0., 0.9, 0.2, 0., -1.57]),
+        target_grasp_pose=np.array([0.8, 0., 0.9, 0.2, 0., -1.57]),
         n_knots=20,
         reach_time=1.5,
         grasp_time=2.0)
