@@ -1,3 +1,5 @@
+#!/usr/bin/env python
+
 import math
 import numpy as np
 import os
@@ -33,14 +35,18 @@ def create_cut_cylinder(radius, height, cutting_planes,
         point = np.dot(normal, point) * normal
         box_tf = np.eye(4)
         # TF box to place +z along normal
-        roll = math.atan2(normal[0], normal[2])
-        pitch = math.atan2(normal[1], normal[2])
+        if normal[2] != 0.:
+            roll = math.atan2(normal[0], normal[2])
+            pitch = math.atan2(normal[1], normal[2])
+        else:
+            roll = np.pi/2.
+            pitch = 0.
+            yaw = math.atan2(normal[0], normal[1])
         box_tf[0:3, 0:3] = RotationMatrix(
-            RollPitchYaw(roll, pitch, 0.)).matrix()
+            RollPitchYaw(roll, pitch, yaw)).matrix()
         box_tf[0:3, 3] = (np.array(point) -
                           box_tf[0:3, 0:3].dot(
                             np.array([0., 0., box_size/2.])))
-
         meshes.append(trimesh.primitives.Box(
             extents=[box_size, box_size, box_size],
             transform=box_tf))
@@ -77,7 +83,8 @@ def export_sdf(mesh, name, directory, color=[0.75, 0.2, 0.2, 1.],
 
 
 if __name__ == "__main__":
-    cyl = create_cut_cylinder(3, 5, [([0., 1.5, 0], [0, 1., 0])],
+    cyl = create_cut_cylinder(radius=3, height=5,
+                              cutting_planes=[([0., 0, 0], [-0.7, 0.7, 0])],
                               sections=10, verbose=True)
     export_sdf(cyl, "test_mesh", "/tmp/test_mesh_export/")
     print open("/tmp/test_mesh_export/test_mesh.sdf").read()

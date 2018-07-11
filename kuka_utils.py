@@ -120,6 +120,7 @@ def add_cut_cylinders_to_tabletop(rbt, n_objects, do_convex_decomp=False):
     import mesh_creation
     import trimesh
     for k in range(n_objects):
+        # Determine parameters of the cylinders
         height = np.random.random() * 0.03 + 0.04
         radius = np.random.random() * 0.02 + 0.01
         cut_dir = np.random.random(3)-0.5
@@ -127,14 +128,17 @@ def add_cut_cylinders_to_tabletop(rbt, n_objects, do_convex_decomp=False):
         cut_dir /= np.linalg.norm(cut_dir)
         cut_point = (np.random.random(3) - 0.5)*radius*0.5
         cutting_planes = [(cut_point, cut_dir)]
+
+        # Create a mesh programmatically for that cylinder
         cyl = mesh_creation.create_cut_cylinder(
             radius, height, cutting_planes, sections=20)
         cyl.density = 1000.  # Same as water
-
         init_pos = [0.6 + np.random.random()*0.2,
                     -0.2 + np.random.random()*0.4,
                     _table_top_z_in_world+radius+0.001]
         init_rot = [0., np.pi/2., np.random.random() * np.pi * 2.]
+
+        # Save it out to a file and add it to the RBT
         object_init_frame = RigidBodyFrame(
             "object_init_frame_%f" % k, rbt.world(),
             init_pos, init_rot)
