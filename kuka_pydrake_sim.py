@@ -1,6 +1,7 @@
 # -*- coding: utf8 -*-
 
 import argparse
+import random
 import time
 
 import matplotlib.pyplot as plt
@@ -37,7 +38,15 @@ if __name__ == "__main__":
                         action="store_true",
                         help="Help out CI by launching a meshcat server for "
                              "the duration of the test.")
+    parser.add_argument("--sim_type",
+                        type=str, default="cylinder_flipping",
+                        help="Options: [single_object, cylinder_flipping]")
+    parser.add_argument("--seed",
+                        type=float, default=time.time(),
+                        help="RNG seed")
     args = parser.parse_args()
+    random.seed(args.seed)
+    np.random.seed(int(args.seed*1000. % 2**32))
 
     meshcat_server_p = None
     if args.test:
@@ -51,6 +60,18 @@ if __name__ == "__main__":
     # Construct the robot and its environment
     rbt = RigidBodyTree()
     kuka_utils.setup_kuka(rbt)
+    rbt_just_kuka = rbt.Clone()
+    if args.sim_type == "single_object":
+        kuka_utils.add_block_to_tabletop(rbt)
+    elif args.sim_type == "cylinder_flipping":
+        kuka_utils.add_cut_cylinders_to_tabletop(rbt, 10)
+    else:
+        raise ValueError("Arg sim_type should be one of the options, "
+                         "try --help.")
+    rbt.compile()
+    rbt_just_kuka.compile()
+    q0 = kuka_utils.project_rbt_to_nearest_feasible_on_table(
+        rbt, rbt.getZeroConfiguration())
 
     # Set up a visualizer for the robot
     pbrv = MeshcatRigidBodyVisualizer(rbt, draw_timestep=0.01)
@@ -60,16 +81,16 @@ if __name__ == "__main__":
     # Plan a robot motion to maneuver from the initial posture
     # to a posture that we know should grab the object.
     # (Grasp planning is left as an exercise :))
-    q0 = rbt.getZeroConfiguration()
     qtraj, info = kuka_ik.plan_grasping_trajectory(
-        rbt,
-        q0=q0,
+        rbt_just_kuka,
+        q0=q0[0:rbt_just_kuka.get_num_positions()],
         target_reach_pose=np.array([0.6, 0., 1.0, -0.75, 0., -1.57]),
         target_grasp_pose=np.array([0.8, 0., 0.9, -0.75, 0., -1.57]),
         n_knots=20,
         reach_time=1.5,
         grasp_time=2.0)
 
+    print qtraj
     # Make our RBT into a plant for simulation
     rbplant = RigidBodyPlant(rbt)
     rbplant.set_name("Rigid Body Plant")
@@ -119,7 +140,7 @@ if __name__ == "__main__":
     # - Add frame for camera fixture.
     camera_frame = RigidBodyFrame(
         name="rgbd camera frame", body=rbt.world(),
-        xyz=[2, 0., 1.5], rpy=[-np.pi/4, 0., -np.pi])
+        xyz=[2.5, 0., 1.5], rpy=[-np.pi/4, 0., -np.pi])
     rbt.addFrame(camera_frame)
     camera = builder.AddSystem(
         RgbdCamera(name="camera", tree=rbt, frame=camera_frame,
@@ -175,13 +196,15 @@ if __name__ == "__main__":
     # advancing once the gripper grasps the box.  Grasping makes the
     # problem computationally stiff, which brings the default RK3
     # integrator to its knees.
-    timestep = 0.0002
+    timestep = 0.0001
     simulator.reset_integrator(
         RungeKutta2Integrator(diagram, timestep,
                               simulator.get_mutable_context()))
 
     # This kicks off simulation. Most of the run time will be spent
     # in this call.
+    plt.figure()
+    plt.show()
     simulator.StepTo(args.duration)
     print("Final state: ", state.CopyToVector())
 

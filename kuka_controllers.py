@@ -253,8 +253,9 @@ class ManipStateMachine(LeafSystem):
         if t >= t_end:
             target_v *= -1.
         kuka_setpoint = y_data.get_mutable_value()
-        kuka_setpoint[:self.nq] = target_q[:, 0]
-        kuka_setpoint[self.nq:] = target_v[:, 0]
+        nq_plan = target_q.shape[0]
+        kuka_setpoint[:nq_plan] = target_q[:, 0]
+        kuka_setpoint[self.nq:(self.nq+nq_plan)] = target_v[:, 0]
 
     def _DoCalcHandSetpointOutput(self, context, y_data):
         state = context.get_discrete_state_vector().get_value()
