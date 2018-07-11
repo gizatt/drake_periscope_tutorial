@@ -126,7 +126,7 @@ def add_cut_cylinders_to_tabletop(rbt, n_objects, do_convex_decomp=False):
         cut_dir = np.random.random(3)-0.5
         cut_dir[2] = 0.
         cut_dir /= np.linalg.norm(cut_dir)
-        cut_point = (np.random.random(3) - 0.5)*radius*0.5
+        cut_point = (np.random.random(3) - 0.5)*radius*1.5
         cutting_planes = [(cut_point, cut_dir)]
 
         # Create a mesh programmatically for that cylinder
