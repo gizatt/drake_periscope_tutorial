@@ -6,15 +6,12 @@ import numpy as np
 
 import pydrake
 from pydrake.all import (
-    AbstractValue,
     AddFlatTerrainToWorld,
     AddModelInstancesFromSdfString,
     AddModelInstanceFromUrdfFile,
     AddModelInstanceFromUrdfStringSearchingInRosPackages,
     FloatingBaseType,
     LeafSystem,
-    Image,
-    PixelType,
     PortDataType,
     RigidBodyFrame,
     RollPitchYaw,
@@ -138,11 +135,8 @@ class RgbdCameraMeshcatVisualizer(LeafSystem):
         self.prefix = prefix
 
         self.camera_input_port = \
-            self._DeclareAbstractInputPort(
-                "depth_im",
-                AbstractValue.Make(Image[PixelType.kDepth32F](
-                    self.camera.depth_camera_info().width(),
-                    self.camera.depth_camera_info().height())))
+            self._DeclareInputPort(PortDataType.kAbstractValued,
+                                   camera.depth_image_output_port().size())
         self.state_input_port = \
             self._DeclareInputPort(PortDataType.kVectorValued,
                                    rbt.get_num_positions() +

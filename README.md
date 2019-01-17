@@ -2,13 +2,13 @@
 
 [![Build Status](https://travis-ci.org/gizatt/drake_periscope_tutorial.svg?branch=master)](https://travis-ci.org/gizatt/drake_periscope_tutorial)
 
-*(Build tested both on [Drake binaries from 20180604](https://drake-packages.csail.mit.edu/drake/nightly/drake-20180604-xenial.tar.gz) and [latest Drake binaries](https://drake-packages.csail.mit.edu/drake/nightly/drake-latest-xenial.tar.gz)).*
+*(Build tested on [Drake binaries from 20180604](https://drake-packages.csail.mit.edu/drake/nightly/drake-20180604-xenial.tar.gz).)*
 
 This repo contains tutorial info for Drake (see http://drake.mit.edu). It's a sort of code equivalent or companion to [this guide](https://docs.google.com/document/d/16gUlJtwtPeNNLs7vk6IbuXXYKyJTdhoEt8BnXbWg52Y/edit?usp=sharing).
 
 ## PREREQS
 
-You'll have to install Drake (from binaries or source, your choice) following the instructions on the Drake website, or in [this guide](https://docs.google.com/document/d/16gUlJtwtPeNNLs7vk6IbuXXYKyJTdhoEt8BnXbWg52Y/edit?usp=sharing).
+You'll have to install Drake (from binaries or source, your choice) following the instructions on the Drake website, or in [this guide](https://docs.google.com/document/d/16gUlJtwtPeNNLs7vk6IbuXXYKyJTdhoEt8BnXbWg52Y/edit?usp=sharing). Note that this does *not* work on recent Drake versions any more; for the best experience, use the [Drake binaries from 20180604](https://drake-packages.csail.mit.edu/drake/nightly/drake-20180604-xenial.tar.gz). For a codebase similar to this maintained against up-to-date Drake revision, see [this repo](https://github.com/gizatt/pydrake_kuka) or, better yet, the [codebase maintained by MIT's 6.881 course](https://github.com/RobotLocomotion/6-881-examples).
 
 You'll also need to use [jupyter](http://jupyter-notebook-beginner-guide.readthedocs.io/en/latest/what_is_jupyter.html) to view the notebook (.ipynb) files, [graphviz](https://pypi.org/project/graphviz/), and [meshcat-python](https://github.com/rdeits/meshcat-python) to view the 3D visualizations in some of the examples. You'll also need some more standard libraries (e.g. numpy). You can install all of these with
 
