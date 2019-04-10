@@ -4,7 +4,22 @@
 
 *(Build tested on [Drake binaries from 20180604](https://drake-packages.csail.mit.edu/drake/nightly/drake-20180604-xenial.tar.gz).)*
 
+*This tutorial is now vastly out of date. See the Deprecation Information section for details of what you can trust here, and where else you should be looking.*
+
 This repo contains tutorial info for Drake (see http://drake.mit.edu). It's a sort of code equivalent or companion to [this guide](https://docs.google.com/document/d/16gUlJtwtPeNNLs7vk6IbuXXYKyJTdhoEt8BnXbWg52Y/edit?usp=sharing).
+
+## DEPRECATION INFORMATION
+
+You can hopefully trust this repo to keep working, as it's under CI against pegged (i.e. old!) Drake + support-code versions. The system block workflow and system architecture for a simple manipulation system is still relevant and informative to peruse. However, a few core underlying things have changed:
+
+- Modern Drake has transitioned from RigidBodyTree to MultiBodyPlant. The interfaces are similar, but MBP is the cleaner/faster/fancier "modern" version.
+- Misc API in this repo has changed or gone out of date, especially as pertains to Abstract-valued input and State, but probably also lots of other little things.
+- Many conveniences have been introduced in Drake that replace large chunks of the code here (like the Kuka controller code here).
+
+To see a more modern example of this kind of system, you can check out *(updated Apr 10, 2019)*:
+- [MIT's 6.881 coursework](https://manipulation.csail.mit.edu/) -- everything needed to follow along with the assignments, which are all based around a simulation of a Kuka arm doing manipulation tasks, should be public.
+- The Drake [ManipulationStation](https://github.com/RobotLocomotion/drake/tree/master/examples/manipulation_station) example, which is the actively maintained kernel of what supported 6.881. The Python example files can be run as long as Drake is installed on your system (and is on your PYTHONPATH). The C++ examples can be run if you build Drake from source. Instructions for doing both of those things are [here](https://drake.mit.edu/installation.html).
+
 
 ## PREREQS
 
@@ -17,10 +32,10 @@ apt-get install graphviz
 pip install jupyter graphviz meshcat numpy matplotlib
 ```
 
-And finally, you'll need to have the [Drake textbook example code](https://github.com/RussTedrake/underactuated) available and on your PYTHONPATH. You can pull it down with
+And finally, you'll need to have the [Drake textbook example code](https://github.com/RussTedrake/underactuated) available and on your PYTHONPATH. Due to some deprecations, you'll need to checkout an old-ish version -- you can pull it down with
 
 ```
-git clone https://github.com/RussTedrake/underactuated ~/underactuated
+git clone https://github.com/RussTedrake/underactuated ~/underactuated && cd ~/underactuated && git checkout 17687cb52ff8febd77a8f881729317dff3ee8c67
 ```
 
 and add it to your PYTHONPATH with
